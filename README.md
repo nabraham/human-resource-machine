@@ -19,7 +19,14 @@ is the same as:
 2 OUTBOX
 3 JUMP start
 ```
-## Example
+## Usage
+```bash
+python hrm.py <program file> <inputs> (-d option [show stack trace])
+```
+## Examples
 ```bash
 python hrm.py programs/fib.asm 100 15
+```
+```bash
+python hrm.py programs/fib.asm 4 -d
 ```
