@@ -45,7 +45,10 @@ def copyfrom(cpu, r):
         raise Exception('Register %s not set' % r)
 
 def outbox(cpu):
+    if cpu.val == None:
+        raise Exception('No current value for outbox')
     print(cpu.val)
+    cpu.val = None
     cpu.increment()
 
 def jump(cpu, c):
