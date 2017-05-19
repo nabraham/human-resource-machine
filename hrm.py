@@ -85,8 +85,24 @@ def set(cpu, r, v):
     cpu.increment()
     return OK
 
+def bump_p(cpu, r):
+    return bump(cpu, r, lambda x: x+1)
+
+def bump_n(cpu, r):
+    return bump(cpu, r, lambda x: x-1)
+
+def bump(cpu,r,op):
+    if r in cpu.register:
+        cpu.register[r] = op(cpu.register[r])
+        cpu.val = cpu.register[r]
+        return OK
+    else:
+        return (-1,'Register %s not set' % r)
+
 instructions = {
     'ADD': add,
+    'BUMPN': bump_n,
+    'BUMPP': bump_p,
     'COPYFROM': copyfrom,
     'COPYTO': copyto,
     'INBOX': inbox,
@@ -98,7 +114,7 @@ instructions = {
 }
 
 def print_state(line,cmd,cpu,status):
-    print('[%d] - %s\n%s\n%s' % (line,cmd,cpu,status))
+    print('[%d] - %s\n%s\n%s' % (line,status,cpu,cmd))
 
 def main(filename, inputs, debug=False):
     cpu = cpu_state(inputs)
@@ -123,8 +139,8 @@ def main(filename, inputs, debug=False):
 
     if status[0] < 0 or debug:
         for i,s in enumerate(stacktrace):
-            print_state(i,*s)
-        print_state(len(stacktrace),cmd,cpu,status)
+            print_state(i+1,*s)
+        print_state(len(stacktrace)+1,cmd,cpu,status)
 
 if __name__ == '__main__':
     if (sys.argv[-1] == '-d'):
