@@ -4,6 +4,11 @@ import sys
 
 OK = (1,'ok')
 
+def try_cast(v):
+    if v.isdigit():
+        return int(v)
+    return v
+
 class cpu_state:
     inputs = []
     register = {}
@@ -18,7 +23,7 @@ class cpu_state:
         self.cur += 1
 
     def read(self):
-        self.val = self.inputs.pop()
+        self.val = try_cast(self.inputs.pop())
 
     def __repr__(self):
         return json.dumps({
@@ -37,13 +42,13 @@ def inbox(cpu):
     return OK
 
 def copyto(cpu, r):
-    cpu.register[r] = cpu.val
+    cpu.register[str(r)] = cpu.val
     cpu.increment()
     return OK
 
 def copyfrom(cpu, r):
-    if r in cpu.register:
-        cpu.val = cpu.register[r]
+    if str(r) in cpu.register:
+        cpu.val = cpu.register[str(r)]
         cpu.increment()
         return OK
     return (-1, 'Register %s not set' % r)
@@ -56,32 +61,38 @@ def outbox(cpu):
     cpu.increment()
     return OK
 
-def jump(cpu, c):
-    if c in cpu.labels:
-        cpu.cur = int(cpu.labels[c])
-    else:
-        cpu.cur = int(c)
-    return OK
-
-def jumpn(cpu, c):
-    if cpu.val < 0:
-        jump(cpu, c)
+def jump_cond(cpu, c, cond):
+    if cond(cpu.val):
+        if c in cpu.labels:
+            cpu.cur = int(cpu.labels[c])
+        else:
+            cpu.cur = int(c)
     else:
         cpu.increment()
     return OK
 
+def jump(cpu, c):
+    return jump_cond(cpu, c, lambda x: True)
+
+def jumpn(cpu, c):
+    return jump_cond(cpu, c, lambda x: x < 0)
+
+def jumpz(cpu, c):
+    return jump_cond(cpu, c, lambda x: x == 0)
+
 def add(cpu, r):
-    cpu.val += cpu.register[r]
+    cpu.val += cpu.register[str(r)]
     cpu.increment()
     return OK
 
 def sub(cpu, r):
-    cpu.val -= cpu.register[r]
+    cpu.val -= cpu.register[str(r)]
     cpu.increment()
     return OK
 
 def set(cpu, r, v):
-    cpu.register[r] = int(v)
+    r = str(r) #yuck
+    cpu.register[r] = try_cast(v)
     cpu.increment()
     return OK
 
@@ -92,22 +103,24 @@ def bump_n(cpu, r):
     return bump(cpu, r, lambda x: x-1)
 
 def bump(cpu,r,op):
-    if r in cpu.register:
-        cpu.register[r] = op(cpu.register[r])
-        cpu.val = cpu.register[r]
+    if str(r) in cpu.register:
+        cpu.register[str(r)] = op(cpu.register[str(r)])
+        cpu.val = cpu.register[str(r)]
+        cpu.increment()
         return OK
     else:
         return (-1,'Register %s not set' % r)
 
 instructions = {
     'ADD': add,
-    'BUMPN': bump_n,
-    'BUMPP': bump_p,
+    'BUMP-': bump_n,
+    'BUMP+': bump_p,
     'COPYFROM': copyfrom,
     'COPYTO': copyto,
     'INBOX': inbox,
     'JUMP': jump,
     'JUMPN': jumpn,
+    'JUMPZ': jumpz,
     'OUTBOX': outbox,
     'SET': set,
     'SUB': sub
@@ -115,6 +128,11 @@ instructions = {
 
 def print_state(line,cmd,cpu,status):
     print('[%d] - %s\n%s\n%s' % (line,status,cpu,cmd))
+
+def resolve_pointer(cpu,r):
+    if r[0] == '[' and r[-1] == ']':
+        return cpu.register[r[1:-1]]
+    return r
 
 def main(filename, inputs, debug=False):
     cpu = cpu_state(inputs)
@@ -135,7 +153,10 @@ def main(filename, inputs, debug=False):
     while status[0] > 0:
         cmd = commands[cpu.cur]
         stacktrace.append([cmd, str(cpu), str(status)])
-        status = instructions[cmd[0]](cpu, *cmd[1:])
+        if len(cmd) > 1:
+            status = instructions[cmd[0]](cpu, resolve_pointer(cpu, cmd[1]), *cmd[2:])
+        else:
+            status = instructions[cmd[0]](cpu, *cmd[1:])
 
     if status[0] < 0 or debug:
         for i,s in enumerate(stacktrace):
@@ -144,6 +165,6 @@ def main(filename, inputs, debug=False):
 
 if __name__ == '__main__':
     if (sys.argv[-1] == '-d'):
-        main(sys.argv[1], list(map(int, sys.argv[2:][:-1][::-1])), True)
+        main(sys.argv[1], sys.argv[2:][:-1][::-1], True)
     else:
-        main(sys.argv[1], list(map(int, sys.argv[2:][::-1])))
+        main(sys.argv[1], sys.argv[2:][::-1])

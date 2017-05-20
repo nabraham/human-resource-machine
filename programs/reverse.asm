@@ -1,0 +1,13 @@
+SET 14 0
+COPYFROM 14 #start
+COPYTO 13 //tail
+INBOX #read
+JUMPZ dec
+COPYTO [13]
+BUMP+ 13
+JUMP read
+COPYFROM [13] #write
+OUTBOX
+BUMP- 13 #dec
+JUMPN start
+JUMP write

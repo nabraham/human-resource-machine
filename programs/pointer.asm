@@ -1,0 +1,5 @@
+SET a b
+SET b 200
+COPYFROM [a]
+OUTBOX
+INBOX
